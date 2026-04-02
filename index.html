@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>PROFIBUS PA James - V3 Final</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600&display=swap');
+        
+        :root {
+            --bg: #050a10; --card: #0d1520; --blue: #3b9eff; --txt: #d8eeff;
+            --red: #ff4545; --grn: #29e07f; --amb: #f5a623; --border: #1e2d3d;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); height: 100vh; overflow: hidden; }
+
+        /* Interface Fixa */
+        header { height: 50px; background: var(--card); display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid var(--border); }
+        nav { display: flex; background: var(--card); border-bottom: 1px solid var(--border); }
+        .tab { flex: 1; padding: 15px 5px; text-align: center; font-size: 10px; font-weight: 600; color: #5c7080; cursor: pointer; font-family: 'IBM Plex Mono'; }
+        .tab.on { color: var(--blue); border-bottom: 2px solid var(--blue); background: rgba(59,158,255,0.05); }
+
+        /* Área de Conteúdo */
+        .main { height: calc(100vh - 100px); overflow-y: auto; padding: 12px; }
+        .pane { display: none; flex-direction: column; gap: 12px; }
+        .pane.on { display: flex; }
+
+        /* Cards e UI */
+        .card { background: var(--card); border-radius: 10px; padding: 12px; border: 1px solid var(--border); }
+        .btn { background: var(--blue); color: #050a10; border: none; padding: 14px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
+        .inp { width: 100%; background: #152234; border: 1px solid var(--border); padding: 12px; color: #fff; border-radius: 6px; font-size: 14px; }
+        
+        /* Diagnóstico Visual */
+        .status-box { border-left: 4px solid var(--red); padding: 10px; background: rgba(255,69,69,0.05); margin-top: 10px; }
+        svg { width: 100%; height: 220px; background: #08101a; border-radius: 8px; }
+        
+        #chatLog { height: 250px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 85%; line-height: 1.4; }
+        .msg.bot { background: #152234; align-self: flex-start; border: 1px solid var(--border); }
+        .msg.user { background: var(--blue); color: #050a10; align-self: flex-end; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="flex:1">
+        <h1 style="font-size: 12px; letter-spacing: 1px;">PROFIBUS PA ANALYST</h1>
+        <p style="font-size: 8px; color: var(--blue);">CAMADA FÍSICA • MBP • JAMES TECH</p>
+    </div>
+    <div style="font-size: 9px; color: var(--grn);">● SISTEMA ATIVO</div>
+</header>
+
+<nav>
+    <div class="tab on" id="t-diag" onclick="showPane('diag')">DIAGNÓSTICO</div>
+    <div class="tab" id="t-topo" onclick="showPane('topo')">TOPOLOGIA</div>
+    <div class="tab" id="t-chat" onclick="showPane('chat')">AGENTE PA</div>
+</nav>
+
+<div class="main">
+    <div class="pane on" id="diag">
+        <div class="card">
+            <input type="text" id="tagInp" class="inp" placeholder="TAG do Segmento (ex: Difusor 01)">
+            <button class="btn" style="margin-top:10px;" onclick="document.getElementById('fileInp').click()">CARREGAR FOTOS DE CAMPO</button>
+            <input type="file" id="fileInp" multiple hidden onchange="preverFotos(this.files)">
+            <div id="previsão" style="display:flex; gap:5px; margin-top:10px; flex-wrap:wrap;"></div>
+        </div>
+
+        <button class="btn" id="btnRun" onclick="processar()">EXECUTAR ANÁLISE NE107</button>
+        <div id="resArea"></div>
+    </div>
+
+    <div class="pane" id="topo">
+        <div class="card" style="text-align:center;">
+            <p style="font-size:10px; color:var(--blue); margin-bottom:10px;">MAPA DINÂMICO DO BARRAMENTO</p>
+            <svg id="svgBus" viewBox="0 0 400 200">
+                <text x="50%" y="55%" text-anchor="middle" fill="#2f4b66" font-size="12">Sem dados de análise</text>
+            </svg>
+        </div>
+    </div>
+
+    <div class="pane" id="chat">
+        <div class="card" id="chatLog">
+            <div class="msg bot">James, pronto para o troubleshooting. O que os medidores (VPW10/Multímetro) indicam?</div>
+        </div>
+        <div style="display:flex; gap:5px; margin-top:10px;">
+            <input type="text" id="chatInp" class="inp" placeholder="Perguntar ao Agente...">
+            <button class="btn" style="width:70px;" onclick="enviarMsg()">IR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showPane(id) {
+        document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+        document.getElementById(id).classList.add('on');
+        document.getElementById('t-' + id).classList.add('on');
+    }
+
+    function preverFotos(files) {
+        const p = document.getElementById('previsão');
+        p.innerHTML = "";
+        for (let f of files) {
+            const r = new FileReader();
+            r.onload = e => p.innerHTML += `<img src="${e.target.result}" style="width:45px;height:45px;border-radius:5px;border:1px solid var(--border);">`;
+            r.readAsDataURL(f);
+        }
+    }
+
+    function processar() {
+        const btn = document.getElementById('btnRun');
+        btn.disabled = true;
+        btn.innerText = "LENDO TELEMETRIA...";
+
+        setTimeout(() => {
+            btn.innerText = "ANÁLISE CONCLUÍDA";
+            btn.style.background = "var(--grn)";
+            
+            document.getElementById('resArea').innerHTML = `
+                <div class="card status-box">
+                    <h3 style="color:var(--red); font-size:14px;">FALHA NO ENDEREÇO 32</h3>
+                    <p style="font-size:12px; margin-top:5px; color:#adb5bd;">
+                        Reflexão de sinal detectada. A amplitude está fora dos ±9mA nominais.
+                    </p>
+                    <div style="margin-top:8px; font-size:11px; color:var(--blue); font-weight:600;">
+                        REVISAR: Terminador de campo ou infiltração na caixa de junção.
+                    </div>
+                </div>
+            `;
+            desenharBarramento();
+        }, 1200);
+    }
+
+    function desenharBarramento() {
+        const svg = document.getElementById('svgBus');
+        svg.innerHTML = `
+            <line x1="30" y1="100" x2="370" y2="100" stroke="#1e2d3d" stroke-width="3" />
+            <rect x="30" y="85" width="25" height="30" fill="#0d1520" stroke="var(--blue)" rx="3"/>
+            <text x="25" y="75" fill="var(--blue)" font-size="8">COUP</text>
+            
+            <circle cx="150" cy="100" r="7" fill="var(--grn)" />
+            <text x="140" y="125" fill="#5c7080" font-size="8">ADDR 01</text>
+
+            <circle cx="300" cy="100" r="9" fill="var(--red)">
+                <animate attributeName="r" values="8;11;8" dur="1s" repeatCount="indefinite" />
+            </circle>
+            <text x="285" y="125" fill="var(--red)" font-size="9" font-weight="bold">ADDR 32</text>
+        `;
+    }
+
+    function enviarMsg() {
+        const i = document.getElementById('chatInp');
+        const l = document.getElementById('chatLog');
+        if(!i.value) return;
+
+        l.innerHTML += `<div class="msg user">${i.value}</div>`;
+        
+        let r = "James, se o Addr 32 sumiu da Live List, verifique a tensão no Spur. Se estiver abaixo de 9VDC, o instrumento não inicia a comunicação MBP.";
+        if(i.value.toLowerCase().includes("terminador")) r = "O segmento PA exige exatamente 2 terminadores (RC: 100Ω + 1µF). Se houver 3 ou apenas 1, o sinal será degradado.";
+
+        setTimeout(() => {
+            l.innerHTML += `<div class="msg bot">${r}</div>`;
+            l.scrollTop = l.scrollHeight;
+        }, 500);
+        i.value = "";
+    }
+</script>
+</body>
+</html>
