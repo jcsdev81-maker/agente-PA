@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PROFIBUS PA — Analista de Campo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#080e18;--bg2:#0f1c2b;--bg3:#152234;--bg4:#1b2a40;
+  --b0:rgba(59,158,255,.08);--b1:rgba(59,158,255,.18);--b2:rgba(59,158,255,.32);
+  --blue:#3b9eff;--bd:rgba(59,158,255,.13);
+  --grn:#29e07f;--gd:rgba(41,224,127,.12);
+  --amb:#f5a623;--ad:rgba(245,166,35,.12);
+  --red:#ff4545;--rd:rgba(255,69,69,.12);
+  --pur:#9b8afb;--pd:rgba(155,138,251,.12);
+  --txt:#d8eeff;--t2:#6b93b8;--t3:#2f4b66;
+  --sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:8px;--rl:14px;
+  --th:52px;--tbh:42px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{font-family:var(--sans);background:var(--bg);color:var(--txt);font-size:14px;line-height:1.6}
+
+/* ─── CHROME FIXO ─── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--th);z-index:300;
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:var(--bg2);border-bottom:1px solid var(--b0);
+}
+.lm{width:32px;height:32px;border:1px solid var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lm svg{width:17px;height:17px}
+.lt{flex:1;min-width:0}
+.lt h1{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt p{font-size:9px;color:var(--t2);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot-live{font-size:10px;color:var(--grn);font-family:var(--mono);flex-shrink:0}
+
+#tabbar{
+  position:fixed;top:var(--th);left:0;right:0;height:var(--tbh);z-index:300;
+  display:flex;background:var(--bg2);border-bottom:1px solid var(--b0);
+  overflow-x:auto;scrollbar-width:none;
+}
+#tabbar::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:80px;display:flex;align-items:center;justify-content:center;gap:5px;
+  font-size:11px;font-family:var(--mono);color:var(--t3);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;
+  padding:0 10px;letter-spacing:.03em;
+}
+.tab:hover{color:var(--t2)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tab .tbadge{
+  width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;
+  font-size:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);flex-shrink:0;
+}
+
+/* ─── SHELL ─── */
+#shell{
+  position:fixed;
+  top:calc(var(--th) + var(--tbh));
+  left:0;right:0;bottom:0;
+  display:flex;overflow:hidden;
+}
+.pane{display:none;width:100%;height:100%;overflow:hidden;flex-direction:column}
+.pane.on{display:flex}
+
+/* ─── ABA 1: ANÁLISE ─── */
+#p-upload{flex-direction:column}
+#up-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:11px;padding-bottom:72px}
+#up-bar{
+  flex-shrink:0;display:flex;gap:8px;padding:10px 14px;
+  border-top:1px solid var(--b0);background:var(--bg2);
+  /* fixo dentro do pane, nunca some */
+}
+
+/* ─── ABA 2: RELATÓRIO ─── */
+#p-rel{flex-direction:row}
+#rel-side{
+  width:190px;flex-shrink:0;display:flex;flex-direction:column;
+  border-right:1px solid var(--b0);background:var(--bg2);overflow:hidden;
+}
+@media(max-width:600px){#rel-side{width:44px}}
+.rs-head{padding:10px 12px;border-bottom:1px solid var(--b0);flex-shrink:0}
+.rs-title{font-size:9px;font-family:var(--mono);color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
+@media(max-width:600px){.rs-title{display:none}}
+#rnav{flex:1;overflow-y:auto;padding:6px 0}
+.rn{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;border-left:2px solid transparent;transition:all .15s;color:var(--t3)}
+.rn:hover{color:var(--t2);background:var(--bg3)}
+.rn.on{color:var(--blue);border-left-color:var(--blue);background:var(--bg3)}
+.rn-num{font-family:var(--mono);font-size:10px;flex-shrink:0;width:16px;text-align:center}
+.rn-lbl{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:600px){.rn-lbl{display:none}.rn{justify-content:center;padding:10px 0}}
+.rs-bot{padding:10px;border-top:1px solid var(--b0);display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+@media(max-width:600px){.rs-bot{padding:6px}}
+
+#rel-main{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px;scroll-behavior:smooth}
+.ranchor{scroll-margin-top:10px}
+
+/* ─── ABA 3: TOPOLOGIA ─── */
+#p-topo{flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding:14px}
+
+/* ─── ABA 4: AGENTE ─── */
+#p-agent{flex-direction:column}
+#chat-log{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:11px}
+#chat-foot{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--b0);background:var(--bg2);flex-shrink:0}
+
+/* ─── ABA 5: HISTÓRICO ─── */
+#p-hist{flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding:14px}
+
+/* ─── ABA 6: CONFIG ─── */
+#p-cfg{flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding:14px}
+
+/* ─── COMPONENTES ─── */
+.card{background:var(--bg2);border:1px solid var(--b0);border-radius:var(--rl);padding:14px 16px}
+.ct{font-size:9px;font-family:var(--mono);color:var(--t2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.ct::before{content:'';width:3px;height:3px;border-radius:50%;background:var(--blue);flex-shrink:0}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.bp{background:var(--blue);color:#060e18}.bp:hover{opacity:.88}
+.bo{background:transparent;border:1px solid var(--b1);color:var(--t2)}.bo:hover{border-color:var(--blue);color:var(--blue)}
+.bg{background:var(--grn);color:#060e18}.bg:hover{opacity:.88}
+.br{background:var(--red);color:#fff}.br:hover{opacity:.88}
+.bsm{padding:6px 11px;font-size:11px}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.brow{display:flex;gap:8px;flex-wrap:wrap}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--b1);color:var(--t2);font-family:var(--mono);cursor:pointer;transition:all .15s;user-select:none}
+.chip.on,.chip:hover{border-color:var(--blue);color:var(--blue);background:var(--bd)}
+
+/* drop */
+#drop{border:1.5px dashed var(--b1);border-radius:var(--rl);padding:26px 16px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3);position:relative}
+#drop:hover,#drop.drag{border-color:var(--blue);background:var(--bd)}
+#drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+#pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:7px}
+.pi{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--b0);aspect-ratio:4/3;background:var(--bg3)}
+.pi img{width:100%;height:100%;object-fit:cover}
+.plbl{position:absolute;bottom:0;left:0;right:0;background:rgba(8,14,24,.88);font-size:8px;font-family:var(--mono);color:var(--t2);padding:3px 5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prm{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:rgba(255,69,69,.9);color:#fff;border:none;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center}
+
+/* inputs */
+.inp,.sel{width:100%;background:var(--bg3);border:1px solid var(--b0);border-radius:var(--r);padding:8px 11px;color:var(--txt);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s}
+.inp:focus,.sel:focus{border-color:var(--blue)}
+.sel option{background:var(--bg2)}
+.trow{display:flex;gap:7px;margin-bottom:7px}
+.tinp{flex:1}.tinp.inp{border-radius:var(--r)}
+.tpill{display:flex;align-items:center;gap:5px;background:var(--bd);border:1px solid var(--blue);border-radius:20px;padding:3px 9px;font-size:10px;font-family:var(--mono);color:var(--blue)}
+.tpill button{background:none;border:none;color:var(--blue);cursor:pointer;font-size:11px;line-height:1}
+.tlist{display:flex;flex-wrap:wrap;gap:5px}
+label.fl{display:block;font-size:9px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:480px){.fg2{grid-template-columns:1fr}}
+
+/* progresso */
+#prog{display:none;height:2px;background:var(--b0);border-radius:2px;overflow:hidden;margin-bottom:4px}
+#pf{height:100%;background:linear-gradient(90deg,var(--blue),var(--grn));animation:pg 1.8s ease-in-out infinite}
+@keyframes pg{0%{width:5%}60%{width:80%}100%{width:100%}}
+#logbox{display:none;background:var(--bg3);border:1px solid var(--b0);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:10px;color:var(--t2);max-height:100px;overflow-y:auto;line-height:2}
+.ll{color:var(--t3)}.ll.cur{color:var(--blue)}.ll.ok{color:var(--grn)}
+
+/* sev badges */
+.sev{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-family:var(--mono);font-weight:500;padding:2px 7px;border-radius:10px}
+.sF{background:var(--rd);color:var(--red);border:1px solid var(--red)}
+.sS{background:var(--ad);color:var(--amb);border:1px solid var(--amb)}
+.sM{background:var(--pd);color:var(--pur);border:1px solid var(--pur)}
+.sC{background:rgba(255,153,0,.1);color:#ff9900;border:1px solid #ff9900}
+.sG{background:var(--gd);color:var(--grn);border:1px solid var(--grn)}
+
+/* ─── RELATÓRIO ─── */
+.rb{background:var(--bg2);border:1px solid var(--b0);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
+.rcapa{display:flex}
+.rstripe{width:4px;background:var(--blue);flex-shrink:0}
+.rcbody{flex:1;padding:16px 18px}
+.rctag{font-family:var(--mono);font-size:9px;color:var(--blue);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.rctit{font-size:18px;font-weight:600;line-height:1.2;margin-bottom:3px}
+.rcsub{font-size:10px;color:var(--t2);font-family:var(--mono);margin-bottom:13px}
+.idgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+@media(max-width:480px){.idgrid{grid-template-columns:1fr}}
+.idrow{display:flex;flex-direction:column;gap:2px}
+.idlbl{font-size:9px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.rsh{display:flex;align-items:center;gap:9px;padding:9px 14px;border-bottom:1px solid var(--b0);background:var(--bg3)}
+.rsnum{font-family:var(--mono);font-size:10px;color:var(--blue);letter-spacing:.1em;flex-shrink:0}
+.rstit{font-size:12px;font-weight:500}
+.rsb{padding:14px}
+.flbl{font-size:9px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.mrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.met{flex:1;min-width:65px;background:var(--bg3);border:1px solid;border-radius:var(--r);padding:9px 10px;text-align:center}
+.mn{font-size:20px;font-weight:600;font-family:var(--mono)}
+.ml{font-size:8px;color:var(--t2);font-family:var(--mono);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+.tw{overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:11px}
+.rt th{background:var(--bg3);padding:6px 9px;text-align:left;font-weight:500;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--b0);color:var(--t2)}
+.rt td{padding:5px 8px;border:1px solid var(--b0);color:var(--t2);vertical-align:middle}
+.trf td{background:rgba(255,69,69,.04)}
+.mpill{font-family:var(--mono);font-size:9px;background:var(--bd);border:1px solid var(--blue);color:var(--blue);padding:2px 6px;border-radius:10px}
+.msm{font-family:var(--mono);font-size:10px;color:var(--t2)}
+
+/* fault cards */
+.fc{margin-bottom:9px;background:var(--bg3);border-radius:var(--r);overflow:hidden;border:1px solid var(--b0)}
+.fch{display:flex;align-items:center;gap:7px;padding:10px 13px;cursor:pointer;user-select:none;transition:background .15s}
+.fch:hover{background:var(--bg4)}
+.fapill{font-family:var(--mono);font-size:10px;color:var(--t2);background:var(--bg2);border:1px solid var(--b0);padding:2px 6px;border-radius:10px;flex-shrink:0}
+.ftxt{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--blue);flex-shrink:0}
+.ftyp{font-size:10px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.fchev{color:var(--t3);flex-shrink:0;transition:transform .2s;margin-left:auto}
+.fcb{display:none;border-top:1px solid var(--b0)}
+.fcb.open{display:block}
+.fss{padding:12px 14px;border-bottom:1px solid var(--b0)}
+.fss:last-child{border-bottom:none}
+.fsst{font-family:var(--mono);font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px}
+.fg2r{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:460px){.fg2r{grid-template-columns:1fr}}
+
+/* ef (editable fields) */
+.efw{position:relative}
+.ef{width:100%;background:var(--bg3);border:1px solid var(--b0);border-radius:6px;padding:6px 26px 6px 9px;color:var(--txt);font-family:var(--sans);font-size:12px;line-height:1.5;outline:none;transition:border-color .15s}
+.ef:focus{border-color:var(--blue);background:var(--bg4)}
+.efl{height:30px}
+.efa{resize:vertical;min-height:52px;font-size:12px}
+.efi{position:absolute;right:7px;top:7px;font-size:11px;color:var(--amb);opacity:.65;pointer-events:none}
+.efi-a{top:9px}
+.efsel{background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:4px 9px;color:var(--t2);font-family:var(--mono);font-size:10px;outline:none;cursor:pointer}
+.efssm{background:var(--bg3);border:1px solid var(--b0);border-radius:6px;padding:3px 7px;color:var(--t2);font-family:var(--mono);font-size:9px;outline:none}
+.rt td .ef{font-size:11px;padding:2px 21px 2px 6px;height:26px}
+.rt td .efi{top:4px;font-size:10px}
+
+/* passos */
+.sstep{display:flex;gap:9px;margin-bottom:9px;align-items:flex-start}
+.snum{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);font-weight:500;flex-shrink:0;margin-top:2px}
+.sbody{flex:1}
+.btnadd{background:none;border:1px dashed var(--b1);color:var(--t3);font-size:10px;font-family:var(--mono);padding:4px 10px;border-radius:var(--r);cursor:pointer;margin-top:7px}
+.btnadd:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ações */
+.arow{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
+.anum{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:var(--mono);font-weight:500;flex-shrink:0;margin-top:3px}
+.ar{background:var(--rd);color:var(--red);border:1px solid var(--red)}
+.ap{background:var(--pd);color:var(--pur);border:1px solid var(--pur)}
+
+/* assinaturas */
+.asg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+@media(max-width:480px){.asg{grid-template-columns:1fr}}
+.asb{padding:11px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--b0)}
+.aslbl{font-size:9px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.asline{height:1px;background:var(--b1);margin:16px 0 5px}
+.assub{font-size:9px;color:var(--t3);font-family:var(--mono)}
+
+/* banner edição */
+#ebanner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;padding:7px 11px;margin-bottom:11px;background:var(--bg3);border:1px solid var(--b0);border-radius:var(--r);font-size:10px;color:var(--t2);font-family:var(--mono);position:sticky;top:0;z-index:10}
+.ehint{display:flex;align-items:center;gap:5px}
+.eamb{color:var(--amb)}
+
+/* chat */
+.cmsg{display:flex;gap:7px;align-items:flex-start}
+.cmsg.u{flex-direction:row-reverse}
+.cav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;font-family:var(--mono)}
+.cav.a{background:var(--bd);color:var(--blue);border:1px solid var(--blue)}
+.cav.u{background:var(--bg3);color:var(--t2);border:1px solid var(--b0)}
+.cbbl{max-width:88%;padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.6}
+.cbbl.a{background:var(--bg3);border:1px solid var(--b0);color:var(--txt);border-top-left-radius:3px}
+.cbbl.u{background:var(--blue);color:#060e18;font-weight:500;border-top-right-radius:3px}
+.cbbl b{font-weight:600}
+.cbbl code{font-family:var(--mono);font-size:10px;background:var(--bd);padding:1px 5px;border-radius:4px;color:var(--blue)}
+#cinp{flex:1;background:var(--bg3);border:1px solid var(--b0);border-radius:22px;padding:9px 15px;color:var(--txt);font-family:var(--sans);font-size:13px;outline:none;min-width:0}
+#cinp:focus{border-color:var(--blue)}
+#csend{width:38px;height:38px;border-radius:50%;background:var(--blue);border:none;color:#060e18;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dots span{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--blue);animation:bl 1.2s infinite;margin:0 1px}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes bl{0%,80%,100%{opacity:.15}40%{opacity:1}}
+
+/* histórico */
+.hcard{background:var(--bg2);border:1px solid var(--b0);border-radius:var(--rl);padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:border-color .15s}
+.hcard:hover{border-color:var(--blue)}
+.hcard-top{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.hcard-seg{font-size:13px;font-weight:500}
+.hcard-dt{font-size:10px;color:var(--t2);font-family:var(--mono);margin-left:auto}
+.hcard-metrics{display:flex;gap:7px;flex-wrap:wrap}
+.hm{font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:10px}
+.hm-f{background:var(--rd);color:var(--red)}
+.hm-s{background:var(--ad);color:var(--amb)}
+.hm-g{background:var(--gd);color:var(--grn)}
+
+/* config */
+.cfgsec{margin-bottom:18px}
+.cfgsec-title{font-size:10px;font-family:var(--mono);color:var(--blue);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--b0)}
+.logobox{width:100%;height:70px;border:1.5px dashed var(--b1);border-radius:var(--r);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;background:var(--bg3)}
+.logobox input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.logobox img{max-height:60px;max-width:100%;object-fit:contain}
+.logobox-hint{font-size:11px;color:var(--t3);font-family:var(--mono)}
+.cfg-row{display:flex;flex-direction:column;gap:3px;margin-bottom:9px}
+
+/* placeholder */
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:9px;color:var(--t3);font-family:var(--mono);font-size:11px;text-align:center;padding:20px}
+
+/* topo */
+#topo-leg{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
+.tleg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t2);font-family:var(--mono)}
+.tdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#topo-wrap{background:var(--bg2);border:1px solid var(--b0);border-radius:var(--rl);overflow:hidden}
+#tsvg{width:100%;display:block}
+
+/* ── PRINT ── */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{overflow:visible!important;height:auto!important}
+  #topbar,#tabbar,#rel-side,.np,#ebanner{display:none!important}
+  #shell{position:static!important;overflow:visible!important;top:0;height:auto}
+  #p-rel{display:flex!important;overflow:visible!important;height:auto}
+  #rel-main{overflow:visible!important;padding:10px!important;height:auto}
+  .rb{border:1px solid #ccc!important;background:white!important;page-break-inside:avoid;margin-bottom:12px;color:#111!important}
+  .rsh{background:#f0f4f8!important}.rsnum{color:#185FA5!important}.rstit{color:#111!important}
+  .rstripe{background:#185FA5!important}
+  .rctit{color:#111!important}.rcsub{color:#555!important}.idlbl{color:#555!important}
+  .ef{border:none!important;background:transparent!important;color:#111!important;padding:0!important}
+  .efa{height:auto!important;resize:none!important}
+  .efi,.efsel,.efssm,.btnadd,.np,.efssm{display:none!important}
+  .fcb{display:block!important}
+  .fc{border-left-width:3px!important;page-break-inside:avoid}
+  .fsst{color:#185FA5!important}
+  .rt th{background:#f0f4f8!important;color:#111!important}
+  .rt td,.rt th{border:1px solid #ddd!important;color:#111!important}
+  .trf td{background:#fff8f8!important}
+  .mpill{background:#e8eef8!important;color:#111!important;border:none!important}
+  .sF{background:#ffe0e0!important;color:#c00!important}
+  .sS{background:#fff3d0!important;color:#7a5000!important}
+  .sM{background:#f0eeff!important;color:#5b3fac!important}
+  .sG{background:#e0f5ea!important;color:#1a7a40!important}
+  .met{background:#f8fafc!important;border:1px solid #ddd!important}
+  .asline{background:#ccc!important}
+  .ar{background:#ffe0e0!important;color:#c00!important}
+  .ap{background:#f0eeff!important;color:#5b3fac!important}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="lm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#3b9eff" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+  </div>
+  <div class="lt">
+    <h1>PROFIBUS PA — Analista de Campo</h1>
+    <p id="topcfg-hint">VPW10 · DM-AM-KIT · FDH-1 · ProfiTrace · ComBricks · DCS · Campo</p>
+  </div>
+  <div class="dot-live">● ONLINE</div>
+</div>
+
+<!-- TABS -->
+<div id="tabbar">
+  <div class="tab on" onclick="goTab('upload')" id="tab-upload">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Análise
+  </div>
+  <div class="tab" onclick="goTab('rel')" id="tab-rel">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Relatório
+    <span class="tbadge" id="tbadge" style="display:none">0</span>
+  </div>
+  <div class="tab" onclick="goTab('topo')" id="tab-topo">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="14" x2="5" y2="17"/><line x1="12" y1="14" x2="19" y2="17"/></svg>
+    Topologia
+  </div>
+  <div class="tab" onclick="goTab('agent')" id="tab-agent">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Agente PA
+  </div>
+  <div class="tab" onclick="goTab('hist')" id="tab-hist">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6l2 3H21a2 2 0 012 2v11a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+    Histórico
+  </div>
+  <div class="tab" onclick="goTab('cfg')" id="tab-cfg">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Config
+  </div>
+</div>
+
+<!-- SHELL -->
+<div id="shell">
+
+  <!-- ═══ ABA 1: ANÁLISE ═══ -->
+  <div class="pane on" id="p-upload">
+    <div id="up-scroll">
+      <div class="card">
+        <div class="ct">Fonte das imagens</div>
+        <div class="chips" id="schips">
+          <div class="chip on" onclick="tChip(this)">ProfiTrace</div>
+          <div class="chip" onclick="tChip(this)">ComBricks</div>
+          <div class="chip" onclick="tChip(this)">P+F DM-AM-KIT</div>
+          <div class="chip" onclick="tChip(this)">Vivace VPW10</div>
+          <div class="chip" onclick="tChip(this)">P+F FDH-1</div>
+          <div class="chip" onclick="tChip(this)">DCS/SCADA</div>
+          <div class="chip" onclick="tChip(this)">Campo/Painel</div>
+          <div class="chip" onclick="tChip(this)">Outro</div>
+        </div>
+      </div>
+
+      <div id="drop" ondragover="dOv(event)" ondragleave="dLv()" ondrop="dDp(event)">
+        <input type="file" accept="image/*" multiple onchange="hFiles(this.files)">
+        <div style="color:var(--blue);margin-bottom:8px">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:3px">Solte imagens aqui ou toque para selecionar</div>
+        <div style="font-size:10px;color:var(--t2)">ProfiTrace · DM-AM-KIT · VPW10 · FDH-1 · DCS · Campo</div>
+      </div>
+
+      <div id="pgrid"></div>
+
+      <div class="card">
+        <div class="ct">TAGs dos dispositivos</div>
+        <div class="trow">
+          <input class="inp tinp" id="tinp" placeholder="FT-101, PT-202 — Enter" onkeydown="tKey(event)">
+          <button class="btn bo bsm" onclick="addTag()">+ TAG</button>
+        </div>
+        <div class="tlist" id="tlist"></div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Dados do segmento</div>
+        <div class="fg2">
+          <div><label class="fl">Nome do segmento</label><input class="inp" id="sn" placeholder="SEG-PA-01"></div>
+          <div><label class="fl">Responsável técnico</label><input class="inp" id="sr" placeholder="Nome / Matrícula"></div>
+          <div><label class="fl">Coupler / Link</label>
+            <select class="sel" id="sc">
+              <option value="">Selecione...</option>
+              <option>P+F SC1 FISCO (100mA/13V)</option><option>P+F SC2 Entity (400mA/24V)</option>
+              <option>P+F High-Power Trunk (500mA/28V)</option><option>Siemens DP/PA Coupler Ex (100mA)</option>
+              <option>Siemens DP/PA Coupler (400mA)</option><option>Siemens DP/PA Link (IM153-2)</option>
+              <option>Y-Link (redundante)</option><option>Outro</option>
+            </select>
+          </div>
+          <div><label class="fl">DCS / PLC</label>
+            <select class="sel" id="sd">
+              <option value="">Selecione...</option>
+              <option>Siemens PCS7</option><option>Siemens TIA Portal</option>
+              <option>Emerson DeltaV</option><option>ABB 800xA</option>
+              <option>Yokogawa CENTUM</option><option>Rockwell (via gateway)</option><option>Outro</option>
+            </select>
+          </div>
+          <div><label class="fl">Comprimento trunk (m)</label><input class="inp" id="sco" type="number" placeholder="450"></div>
+          <div><label class="fl">Área classificada</label>
+            <select class="sel" id="sex">
+              <option>Não (área segura)</option><option>Zona 2 / Div.2</option>
+              <option>Zona 1 — FISCO</option><option>Zona 1 — Entity</option><option>Zona 0</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1"><label class="fl">Contexto adicional</label><input class="inp" id="sctx" placeholder="Ex: falha após troca de instrumento, partida de motor próximo..."></div>
+        </div>
+      </div>
+
+      <div id="prog"><div id="pf"></div></div>
+      <div id="logbox"></div>
+
+    </div><!-- /up-scroll -->
+
+    <!-- BARRA FIXA NO FUNDO — nunca some com teclado -->
+    <div id="up-bar">
+      <button class="btn bp" id="btan" onclick="analisar()" style="flex:1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Analisar com IA
+      </button>
+      <button class="btn bo" onclick="limpar()" style="min-width:80px">Limpar</button>
+    </div><!-- /up-bar -->
+  </div><!-- /p-upload -->
+
+  <!-- ═══ ABA 2: RELATÓRIO ═══ -->
+  <div class="pane" id="p-rel">
+    <div id="rel-side">
+      <div class="rs-head"><div class="rs-title">Navegação</div></div>
+      <div id="rnav">
+        <div class="rn on" onclick="gSec('s0')" id="rn0"><span class="rn-num">—</span><span class="rn-lbl">Identificação</span></div>
+        <div class="rn" onclick="gSec('s1')" id="rn1"><span class="rn-num">01</span><span class="rn-lbl">Sumário Exec.</span></div>
+        <div class="rn" onclick="gSec('s2')" id="rn2"><span class="rn-num">02</span><span class="rn-lbl">Inventário</span></div>
+        <div class="rn" onclick="gSec('s3')" id="rn3"><span class="rn-num">03</span><span class="rn-lbl">Falhas</span></div>
+        <div class="rn" onclick="gSec('s4')" id="rn4"><span class="rn-num">04</span><span class="rn-lbl">Plano de Ação</span></div>
+        <div class="rn" onclick="gSec('s5')" id="rn5"><span class="rn-num">05</span><span class="rn-lbl">Conclusão</span></div>
+      </div>
+      <div class="rs-bot np">
+        <button class="btn bo bsm np" onclick="goTab('topo')" style="width:100%">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="14" x2="5" y2="17"/><line x1="12" y1="14" x2="19" y2="17"/></svg>
+          <span class="rn-lbl">Topologia</span>
+        </button>
+        <button class="btn bo bsm np" onclick="exportWord()" style="width:100%">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="rn-lbl">Word (.docx)</span>
+        </button>
+        <button class="btn bp bsm" onclick="exportPDF()" style="width:100%">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span class="rn-lbl">Exportar PDF</span>
+        </button>
+        <button class="btn bo bsm np" onclick="shareWA()" style="width:100%">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span class="rn-lbl">WhatsApp</span>
+        </button>
+      </div>
+    </div>
+    <div id="rel-main">
+      <div class="ph" id="rph">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Nenhum relatório gerado.<br>Vá para Análise e envie as imagens.
+      </div>
+      <div id="rbody" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ═══ ABA 3: TOPOLOGIA ═══ -->
+  <div class="pane" id="p-topo">
+    <div id="topo-leg">
+      <div class="tleg"><div class="tdot" style="background:var(--blue)"></div>Normal</div>
+      <div class="tleg"><div class="tdot" style="background:var(--red)"></div>Falha (F)</div>
+      <div class="tleg"><div class="tdot" style="background:var(--amb)"></div>Fora Spec (S)</div>
+      <div class="tleg"><div class="tdot" style="background:var(--pur)"></div>Manutenção (M)</div>
+      <div class="tleg"><div class="tdot" style="background:var(--grn)"></div>OK (G)</div>
+    </div>
+    <div id="topo-wrap">
+      <svg id="tsvg" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid meet">
+        <text x="400" y="155" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" fill="#2f4b66">Aguardando análise...</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ═══ ABA 4: AGENTE ═══ -->
+  <div class="pane" id="p-agent">
+    <div id="chat-log">
+      <div class="cmsg">
+        <div class="cav a">PA</div>
+        <div class="cbbl a"><b>Agente PROFIBUS PA — Cérebro Completo.</b><br><br>Faça perguntas técnicas. Se um relatório foi gerado, posso analisá-lo também — basta pedir.</div>
+      </div>
+    </div>
+    <div id="chat-foot">
+      <input id="cinp" placeholder="Pergunta técnica PROFIBUS PA..." onkeydown="cKey(event)">
+      <button id="csend" onclick="cSend()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ ABA 5: HISTÓRICO ═══ -->
+  <div class="pane" id="p-hist">
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Relatórios salvos localmente</div>
+      <div id="hist-list"><div class="ph" style="height:auto;padding:20px 0">Nenhum relatório salvo ainda.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ ABA 6: CONFIG ═══ -->
+  <div class="pane" id="p-cfg">
+    <div class="card">
+      <div class="cfgsec">
+        <div class="cfgsec-title">Identidade da empresa</div>
+        <div class="cfg-row">
+          <label class="fl">Logo da empresa</label>
+          <div class="logobox" id="logobox">
+            <input type="file" accept="image/*" onchange="setLogo(this)">
+            <img id="logoimg" style="display:none">
+            <div class="logobox-hint" id="logohint">Toque para adicionar logo</div>
+          </div>
+        </div>
+        <div class="cfg-row"><label class="fl">Nome da empresa</label><input class="inp" id="cfg-emp" placeholder="Ex: Petrobras S.A." oninput="saveCfg()"></div>
+        <div class="cfg-row"><label class="fl">Unidade / Planta</label><input class="inp" id="cfg-planta" placeholder="Ex: REPLAN — Refinaria" oninput="saveCfg()"></div>
+        <div class="cfg-row"><label class="fl">Responsável padrão</label><input class="inp" id="cfg-resp" placeholder="Nome e matrícula" oninput="saveCfg()"></div>
+      </div>
+      <div class="cfgsec">
+        <div class="cfgsec-title">Preferências de relatório</div>
+        <div class="cfg-row"><label class="fl">Número inicial de OS</label><input class="inp" id="cfg-os" placeholder="Ex: OS-2024-001" oninput="saveCfg()"></div>
+        <div class="cfg-row"><label class="fl">Nota de rodapé</label><input class="inp" id="cfg-foot" placeholder="Ex: Documento confidencial — uso interno" oninput="saveCfg()"></div>
+      </div>
+      <div class="brow">
+        <button class="btn bp" onclick="saveCfg();alert('Configurações salvas!')">Salvar configurações</button>
+        <button class="btn bo" onclick="if(confirm('Limpar tudo?')){localStorage.clear();location.reload()}">Resetar app</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// MÓDULO 1 — ESTADO GLOBAL E CONSTANTES
+// ─────────────────────────────────────────────
+
+/** Estado único da aplicação — nunca mutado fora dos setters abaixo */
+const APP = {
+  imgs:   [],       // Array<{file, url, type}> — imagens carregadas
+  tags:   [],       // Array<string>            — TAGs dos dispositivos
+  report: null,     // Object|null              — relatório atual (parsed JSON)
+  chat:   [],       // Array<{role,content}>    — histórico do agente
+  cfg:    {},       // Object                   — configurações persistidas
+  srcs:   new Set(['ProfiTrace']), // Set<string> — fontes selecionadas
+};
+
+/** Classificações NE107 */
+const NE107 = {
+  label: { F:'Falha Crítica', S:'Fora de Especificação', M:'Manutenção Requerida', C:'Em Verificação', G:'Normal' },
+  css:   { F:'sF', S:'sS', M:'sM', C:'sC', G:'sG' },
+  color: { F:'var(--red)', S:'var(--amb)', M:'var(--pur)', C:'#ff9900', G:'var(--grn)' },
+};
+
+/** Passos do log de progresso */
+const LOG_STEPS = [
+  'Lendo imagens...', 'Identificando analisador...', 'Extraindo endereços e status...',
+  'Correlacionando TAGs...', 'Classificando NE107...', 'Gerando soluções...',
+  'Montando topologia...', 'Compilando relatório...',
+];
+
+/** URL base da API */
+const API_URL = 'https://api.anthropic.com/v1/messages';
+const API_HEADERS = {
+  'Content-Type': 'application/json',
+  'anthropic-dangerous-direct-browser-access': 'true',
+};
+
+// ─────────────────────────────────────────────
+// MÓDULO 2 — UTILITÁRIOS
+// ─────────────────────────────────────────────
+
+/** Retorna elemento pelo id, lança erro claro se não encontrar */
+function el(id) {
+  const e = document.getElementById(id);
+  if (!e) console.warn(`el(): #${id} não encontrado`);
+  return e;
+}
+
+/** Escapa HTML para evitar XSS em strings interpoladas */
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Formata texto Markdown leve para HTML seguro (bold, code, quebras) */
+function mdToHtml(txt) {
+  if (!txt) return '';
+  return esc(txt)
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+/** Lê localStorage com fallback seguro */
+function lsGet(key, fallback = null) {
+  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback; }
+  catch { return fallback; }
+}
+
+/** Escreve no localStorage silenciosamente */
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* quota exceeded */ }
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 3 — INICIALIZAÇÃO
+// ─────────────────────────────────────────────
+
+(function init() {
+  APP.cfg = lsGet('pa_cfg', {});
+
+  // Restaurar campos de configuração
+  const fields = ['emp', 'planta', 'resp', 'os', 'foot'];
+  fields.forEach(k => {
+    const input = el(`cfg-${k}`);
+    if (input && APP.cfg[k]) input.value = APP.cfg[k];
+  });
+
+  // Responsável padrão no campo da aba análise
+  if (APP.cfg.resp) {
+    const sr = el('sr');
+    if (sr) sr.value = APP.cfg.resp;
+  }
+
+  // Logo
+  if (APP.cfg.logo) {
+    const img = el('logoimg');
+    const hint = el('logohint');
+    if (img) { img.src = APP.cfg.logo; img.style.display = 'block'; }
+    if (hint) hint.style.display = 'none';
+  }
+
+  // Hint do topbar
+  _updateTopHint();
+
+  // Histórico
+  renderHist();
+})();
+
+// ─────────────────────────────────────────────
+// MÓDULO 4 — CONFIGURAÇÃO
+// ─────────────────────────────────────────────
+
+function saveCfg() {
+  const fields = ['emp', 'planta', 'resp', 'os', 'foot'];
+  fields.forEach(k => {
+    const input = el(`cfg-${k}`);
+    if (input) APP.cfg[k] = input.value.trim();
+  });
+  lsSet('pa_cfg', APP.cfg);
+  _updateTopHint();
+}
+
+function setLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('Selecione um arquivo de imagem.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    APP.cfg.logo = ev.target.result;
+    saveCfg();
+    const img = el('logoimg');
+    const hint = el('logohint');
+    if (img) { img.src = ev.target.result; img.style.display = 'block'; }
+    if (hint) hint.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function _updateTopHint() {
+  const hint = el('topcfg-hint');
+  if (!hint) return;
+  const parts = [APP.cfg.emp, APP.cfg.planta].filter(Boolean);
+  hint.textContent = parts.join(' · ');
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 5 — NAVEGAÇÃO POR ABAS
+// ─────────────────────────────────────────────
+
+function goTab(id) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+
+  const pane = el(`p-${id}`);
+  const tab  = el(`tab-${id}`);
+
+  if (!pane) { console.warn(`goTab: aba '${id}' não encontrada`); return; }
+  pane.classList.add('on');
+  if (tab) tab.classList.add('on');
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 6 — UPLOAD DE IMAGENS
+// ─────────────────────────────────────────────
+
+function dOv(e) { e.preventDefault(); el('drop')?.classList.add('drag'); }
+function dLv()  { el('drop')?.classList.remove('drag'); }
+function dDp(e) { e.preventDefault(); dLv(); loadFiles(e.dataTransfer.files); }
+
+function loadFiles(files) {
+  const MAX_IMGS = 8;
+  for (const file of Array.from(files)) {
+    if (!file.type.startsWith('image/')) continue;
+    if (APP.imgs.length >= MAX_IMGS) {
+      alert(`Máximo de ${MAX_IMGS} imagens por análise.`);
+      break;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      APP.imgs.push({ file, url: ev.target.result, type: file.type });
+      renderPreviews();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Alias para o onchange do input file do HTML
+function hFiles(files) { loadFiles(files); }
+
+function renderPreviews() {
+  const grid = el('pgrid');
+  if (!grid) return;
+  grid.innerHTML = APP.imgs.map((img, i) => `
+    <div class="pi">
+      <img src="${esc(img.url)}" alt="img-${i}">
+      <div class="plbl">${esc(img.file.name.substring(0, 14))}</div>
+      <button class="prm" onclick="removeImg(${i})" aria-label="Remover imagem">✕</button>
+    </div>`).join('');
+}
+
+function removeImg(i) {
+  if (i < 0 || i >= APP.imgs.length) return;
+  APP.imgs.splice(i, 1);
+  renderPreviews();
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 7 — GERENCIAMENTO DE TAGS
+// ─────────────────────────────────────────────
+
+function tKey(e) { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }
+
+function addTag() {
+  const input = el('tinp');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+
+  // Aceita múltiplos TAGs separados por vírgula, ponto-e-vírgula ou espaço
+  raw.toUpperCase().split(/[,;\s]+/).forEach(t => {
+    const clean = t.replace(/[^A-Z0-9_\-]/g, '');
+    if (clean && !APP.tags.includes(clean)) APP.tags.push(clean);
+  });
+  input.value = '';
+  renderTags();
+}
+
+function removeTag(tag) {
+  APP.tags = APP.tags.filter(t => t !== tag);
+  renderTags();
+}
+
+function renderTags() {
+  const list = el('tlist');
+  if (!list) return;
+  list.innerHTML = APP.tags.map(t => `
+    <div class="tpill">
+      ${esc(t)}
+      <button onclick="removeTag('${esc(t)}')" aria-label="Remover TAG ${esc(t)}">✕</button>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 8 — CHIPS DE FONTE
+// ─────────────────────────────────────────────
+
+function tChip(el_) {
+  el_.classList.toggle('on');
+  const label = el_.textContent.trim();
+  if (el_.classList.contains('on')) APP.srcs.add(label);
+  else APP.srcs.delete(label);
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 9 — LOG DE PROGRESSO
+// ─────────────────────────────────────────────
+
+function showLog() {
+  const box = el('logbox');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = LOG_STEPS.map((s, i) => `<div class="ll" id="ll${i}">[ ] ${esc(s)}</div>`).join('');
+}
+
+function animLog() {
+  let i = 0;
+  const tick = () => {
+    // Marcar anterior como concluído
+    if (i > 0) {
+      const prev = el(`ll${i - 1}`);
+      if (prev) { prev.className = 'll ok'; prev.textContent = '[✓] ' + LOG_STEPS[i - 1]; }
+    }
+    if (i >= LOG_STEPS.length) return;
+    const cur = el(`ll${i}`);
+    if (cur) { cur.className = 'll cur'; cur.textContent = '[→] ' + LOG_STEPS[i]; }
+    i++;
+    setTimeout(tick, 600);
+  };
+  tick();
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 10 — ANÁLISE COM IA
+// ─────────────────────────────────────────────
+
+async function analisar() {
+  // ── Validação de pré-condições ──
+  if (!APP.imgs.length) {
+    alert('Adicione pelo menos uma imagem do analisador (VPW10, DM-AM-KIT, DCS, etc.).');
+    return;
+  }
+
+  const btn = el('btan');
+  if (!btn) return;
+
+  // ── UI: estado de carregamento ──
+  btn.disabled = true;
+  btn.innerHTML = '<span class="dots"><span></span><span></span><span></span></span> Analisando...';
+  el('prog').style.display = 'block';
+  showLog();
+  animLog();
+
+  // ── Leitura dos campos do formulário ──
+  const form = {
+    segmento:    (el('sn')?.value   || 'SEG-PA').trim(),
+    responsavel: (el('sr')?.value   || APP.cfg.resp || '').trim(),
+    coupler:     (el('sc')?.value   || 'não informado').trim(),
+    dcs:         (el('sd')?.value   || 'não informado').trim(),
+    comprimento: (el('sco')?.value  || 'não informado').trim(),
+    area_ex:     (el('sex')?.value  || 'não informado').trim(),
+    contexto:    (el('sctx')?.value || '').trim(),
+    empresa:     (APP.cfg.emp   || '').trim(),
+    planta:      (APP.cfg.planta || '').trim(),
+    os:          (APP.cfg.os    || '').trim(),
+    fontes:      [...APP.srcs].join(', ') || 'não especificado',
+    tags:        APP.tags.join(', ')       || 'não informados',
+  };
+
+  // ── Construção do payload ──
+  // Converter todas as imagens para JPEG via canvas (garante compatibilidade com a API)
+  // A API suporta: image/jpeg, image/png, image/gif, image/webp
+  let imageBlocks;
+  try {
+    imageBlocks = await Promise.all(APP.imgs.map(img => _toSupportedImage(img)));
+  } catch (convErr) {
+    el('prog').style.display = 'none';
+    el('logbox').style.display = 'none';
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg> Analisar com IA`;
+    alert('Erro ao processar imagem:\n' + convErr.message);
+    return;
+  }
+
+  const now = new Date();
+  const textBlock = {
+    type: 'text',
+    text: _buildAnalysisPrompt(form, now),
+  };
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: API_HEADERS,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: [...imageBlocks, textBlock] }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`API ${res.status}: ${err?.error?.message || res.statusText}`);
+    }
+
+    const data = await res.json();
+    const raw = (data.content || []).map(b => b.text || '').join('').trim();
+    const report = _parseReport(raw, form, now);
+
+    // Normalizar e salvar
+    _normalizeReport(report, form);
+    APP.report = report;
+
+    // ── Finalizar UI ──
+    el('prog').style.display = 'none';
+    el('logbox').style.display = 'none';
+
+    buildReport(report);
+    buildTopo(report);
+    saveToHist(report);
+    renderHist();
+    _updateFaultBadge(report);
+
+    setTimeout(() => goTab('rel'), 350);
+
+  } catch (err) {
+    el('prog').style.display = 'none';
+    el('logbox').style.display = 'none';
+    _showAnalysisError(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg> Analisar com IA`;
+  }
+}
+
+/**
+ * Converte uma imagem carregada para formato aceito pela API Anthropic.
+ * Suportados: image/jpeg, image/png, image/gif, image/webp
+ * Não suportados (iOS HEIC, HEIF, BMP, TIFF) → converte para JPEG via canvas
+ */
+async function _toSupportedImage(img) {
+  const SUPPORTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Se já é suportado, extrair base64 limpo
+  if (SUPPORTED.includes(img.type)) {
+    // url é sempre "data:<type>;base64,<data>"
+    const idx = img.url.indexOf(',');
+    if (idx === -1) throw new Error(`Imagem inválida: ${img.file.name}`);
+    return {
+      type: 'image',
+      source: { type: 'base64', media_type: img.type, data: img.url.slice(idx + 1) },
+    };
+  }
+
+  // Tipo não suportado (HEIC, HEIF, BMP, TIFF, etc.) → renderizar no canvas e exportar como JPEG
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = image.naturalWidth  || image.width;
+        canvas.height = image.naturalHeight || image.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const idx = dataUrl.indexOf(',');
+        resolve({
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.slice(idx + 1) },
+        });
+      } catch (e) {
+        reject(new Error(`Falha ao converter ${img.file.name}: ${e.message}`));
+      }
+    };
+    image.onerror = () => reject(new Error(`Não foi possível carregar ${img.file.name} (formato não suportado)`));
+    image.src = img.url;
+  });
+}
+
+/** Monta o prompt de análise de imagens */
+function _buildAnalysisPrompt(form, now) {
+  // IMPORTANTE: o JSON schema é descrito em texto, não embutido como template
+  // para evitar que a IA confunda os campos de exemplo com valores reais
+  return `Você é um especialista sênior em PROFIBUS PA. Analise CUIDADOSAMENTE cada imagem enviada.
+
+CONTEXTO DO SEGMENTO:
+- Nome: ${form.segmento}
+- Empresa: ${form.empresa || 'não informado'} | Planta: ${form.planta || 'não informado'}
+- Responsável: ${form.responsavel || 'não informado'}
+- Coupler/Link: ${form.coupler} | DCS/PLC: ${form.dcs}
+- Comprimento trunk: ${form.comprimento}m | Área Ex: ${form.area_ex}
+- Fontes: ${form.fontes}
+- TAGs informados pelo usuário: ${form.tags}
+- Contexto: ${form.contexto || 'nenhum'}
+
+O QUE PROCURAR EM CADA TIPO DE IMAGEM:
+
+VIVACE VPW10-PROFIWISER:
+- Live list: endereços, estados (Data_Exchange, Wait_Prm, Wait_Cfg, Offline)
+- Gráfico Spider: 6 eixos (Sinal, Ruído, Terminação, Corrente Trunk, Corrente Spur, Tensão)
+- Correntes: trunk total (mA), cada spur (mA), shield
+- Barras de qualidade por endereço (verde/amarelo/vermelho)
+- Erros CRC, retransmissões, telegrams sem resposta
+
+P+F DM-AM-KIT / FieldConnex Diagnostic Manager:
+- Nível de sinal por nó (mV) — normal > 150mV, crítico < 75mV
+- Jitter por nó (µs) — normal < 1µs, atenção 1-3µs, crítico > 3µs
+- Ruído (mV) — normal < 50mV
+- Polaridade (+ ou -)
+- Mensagens do Expert System em texto claro
+- Resultado do Commissioning Wizard (PASS/FAIL por item)
+- Over/Undertermination detectado
+
+P+F FDH-1 FIELDBUS DIAGNOSTIC HANDHELD:
+- Quick Check: PASS/FAIL para cada item
+- Failure Margin por dispositivo (%)
+- Mensagens do expert system
+
+PROFITRACE / COMBRICKS:
+- SQI (Signal Quality Index) por endereço
+- Live list com status de cada nó
+- Retries e timeouts por endereço
+- Forma de onda: reflexões, ruído, assimetria
+
+DCS / SCADA (PCS7, DeltaV, 800xA, CENTUM):
+- Status de comunicação por endereço
+- Alarmes ativos de diagnóstico
+- Dispositivos em falha ou fora de scan
+
+REGRAS DE CLASSIFICAÇÃO NE107:
+- F (Falha Crítica): dispositivo offline, BAD status byte (0x00, 0x08, 0x10, 0x18), sinal ausente, jitter > 5µs
+- S (Fora de Especificação): sinal degradado (< 100mV), jitter 2-5µs, corrente fora do range, ruído > 100mV
+- M (Manutenção Requerida): SQI caindo, tendência de degradação, warnings do expert system
+- C (Em Verificação): simulação ativa, manutenção em andamento, MODE_BLK não em AUTO
+- G (Normal): todos os parâmetros dentro da especificação
+
+IMPORTANTE:
+1. Identifique TODOS os endereços visíveis nas imagens
+2. Se o usuário forneceu TAGs, associe o endereço ao TAG correspondente
+3. Se não há associação possível, crie TAG sugerido: DEV-XXX (onde XXX é o endereço com zeros à esquerda)
+4. Para cada falha, gere 3 a 5 passos de solução técnicos, específicos e acionáveis
+5. Responda SOMENTE com o JSON abaixo, sem nenhum texto antes ou depois, sem blocos de código markdown
+
+SCHEMA DE RESPOSTA (substitua os valores de exemplo pelos dados reais das imagens):
+{"segmento":"${form.segmento}","data":"${now.toLocaleDateString('pt-BR')}","hora":"${now.toLocaleTimeString('pt-BR')}","responsavel":"${form.responsavel}","empresa":"${form.empresa}","planta":"${form.planta}","ferramentas":"${form.fontes}","resumo_executivo":"PREENCHER: 2-3 frases sobre estado geral do segmento","metricas":{"total":0,"F":0,"S":0,"M":0,"G":0},"dispositivos":[{"endereco":"ADDR","tag":"TAG","tipo":"TIPO","status_ne107":"G","descricao_falha":"","fonte_imagem":"","valor_pv":"","corrente_ma":"","sinal_mv":"","jitter_us":"","passos_solucao":[]}],"acoes_imediatas":["PREENCHER"],"acoes_preventivas":["PREENCHER"],"conclusao_geral":"PREENCHER"}`;
+}
+
+/** Parse defensivo do JSON retornado pela IA */
+function _parseReport(raw, form, now) {
+  if (!raw || !raw.trim()) {
+    throw new Error('A API retornou resposta vazia. Verifique sua conexão e tente novamente.');
+  }
+
+  // Tentativa 1: limpar marcações markdown e parsear direto
+  const cleaned = raw
+    .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/\s*```\s*$/im, '').trim();
+  try { return JSON.parse(cleaned); } catch { /* continua */ }
+
+  // Tentativa 2: extrair maior bloco JSON {...} da resposta (regex guloso)
+  const m2 = cleaned.match(/\{[\s\S]*\}/);
+  if (m2) { try { return JSON.parse(m2[0]); } catch { /* continua */ } }
+
+  // Tentativa 3: linha por linha — encontrar onde começa o JSON
+  const lines = cleaned.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trimStart().startsWith('{')) {
+      const block = lines.slice(i).join('\n');
+      const m3 = block.match(/\{[\s\S]*\}/);
+      if (m3) { try { return JSON.parse(m3[0]); } catch { /* continua */ } }
+      break;
+    }
+  }
+
+  // Log para debug — visível no console do browser
+  console.error('[PA-Analista] Parse falhou. Resposta da IA (800 chars):', raw.substring(0, 800));
+
+  throw new Error(
+    'A IA não retornou um relatório estruturado.\n\n' +
+    'Possíveis causas:\n' +
+    '• Imagem ilegível, muito pequena ou sem dados PA\n' +
+    '• Formato de arquivo não reconhecido\n\n' +
+    'Tente:\n' +
+    '• Print/screenshot direto do analisador\n' +
+    '• Imagem nítida com texto legível\n' +
+    '• Máximo 4 imagens por análise'
+  );
+}
+
+/** Garante que o relatório tem todos os campos obrigatórios com tipos corretos */
+function _normalizeReport(r, form) {
+  // Campos de texto
+  r.segmento    = r.segmento    || form.segmento;
+  r.responsavel = r.responsavel || form.responsavel;
+  r.empresa     = r.empresa     || form.empresa;
+  r.planta      = r.planta      || form.planta;
+  r.ferramentas = r.ferramentas || form.fontes;
+
+  // Arrays obrigatórios
+  if (!Array.isArray(r.dispositivos))        r.dispositivos = [];
+  if (!Array.isArray(r.acoes_imediatas))     r.acoes_imediatas = [];
+  if (!Array.isArray(r.acoes_preventivas))   r.acoes_preventivas = [];
+
+  // Normalizar cada dispositivo
+  r.dispositivos.forEach((d, i) => {
+    d.endereco     = String(d.endereco  || i + 1);
+    d.tag          = String(d.tag       || `DEV-${String(d.endereco).padStart(3,'0')}`);
+    d.tipo         = String(d.tipo      || 'Dispositivo PA');
+    d.status_ne107 = ['F','S','M','C','G'].includes(d.status_ne107) ? d.status_ne107 : 'G';
+    d.descricao_falha = d.descricao_falha || '';
+    d.fonte_imagem    = d.fonte_imagem    || '';
+    d.valor_pv        = d.valor_pv        || '';
+    d.corrente_ma     = d.corrente_ma     || '';
+    d.sinal_mv        = d.sinal_mv        || '';
+    d.jitter_us       = d.jitter_us       || '';
+    d.obs             = d.obs             || '';
+    if (!Array.isArray(d.passos_solucao)) d.passos_solucao = [];
+    d.passos_solucao.forEach((p, pi) => {
+      p.passo   = pi + 1;
+      p.titulo  = p.titulo  || '';
+      p.detalhe = p.detalhe || '';
+    });
+  });
+
+  // Recalcular métricas para garantir consistência com os dados reais
+  const counts = { F: 0, S: 0, M: 0, C: 0, G: 0 };
+  r.dispositivos.forEach(d => { counts[d.status_ne107] = (counts[d.status_ne107] || 0) + 1; });
+  r.metricas = { total: r.dispositivos.length, ...counts };
+}
+
+function _updateFaultBadge(report) {
+  const badge = el('tbadge');
+  if (!badge) return;
+  const nf = (report.metricas?.F || 0) + (report.metricas?.S || 0);
+  badge.textContent = nf;
+  badge.style.display = nf > 0 ? 'flex' : 'none';
+}
+
+function _showAnalysisError(err) {
+  const msg = err?.message || 'Erro desconhecido';
+  alert(
+    `Falha na análise:\n\n${msg}\n\n` +
+    'Dicas:\n' +
+    '• Verifique sua conexão com a internet\n' +
+    '• Use no máximo 4-6 imagens por análise\n' +
+    '• Prefira prints nítidos com dados legíveis\n' +
+    '• Tente novamente em alguns segundos'
+  );
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 11 — CAMPOS EDITÁVEIS
+// ─────────────────────────────────────────────
+
+/**
+ * Gera um campo editável inline (input ou textarea).
+ * ID usa convenção: prefixo__chave (ex: m__segmento, d__0__tag, ai__0)
+ */
+function ef(id, val, placeholder, multiline = false) {
+  const safeVal = esc(val);
+  const safePh  = esc(placeholder);
+  if (multiline) {
+    return `<div class="efw">
+      <textarea class="ef efa" id="ef-${id}" placeholder="${safePh}"
+        oninput="efSave('${id}',this.value)">${safeVal}</textarea>
+      <span class="efi efi-a" aria-hidden="true">✎</span>
+    </div>`;
+  }
+  return `<div class="efw">
+    <input class="ef efl" id="ef-${id}" value="${safeVal}" placeholder="${safePh}"
+      oninput="efSave('${id}',this.value)">
+    <span class="efi" aria-hidden="true">✎</span>
+  </div>`;
+}
+
+/** Persistência de edições no state APP.report */
+function efSave(id, val) {
+  if (!APP.report) return;
+  try {
+    const parts = id.split('__');
+    const [prefix, key1, key2, key3, key4] = parts;
+
+    if (prefix === 'm') {
+      // Campo de metadado: m__campo
+      APP.report[key1] = val;
+
+    } else if (prefix === 'd') {
+      // Campo de dispositivo: d__idx__campo ou d__idx__ps__piIdx__subchave
+      const dev = APP.report.dispositivos[+key1];
+      if (!dev) return;
+      if (key2 === 'ps') {
+        // Passo de solução: d__idx__ps__piIdx__titulo|detalhe
+        const pi = +key3;
+        if (!dev.passos_solucao[pi]) {
+          dev.passos_solucao[pi] = { passo: pi + 1, titulo: '', detalhe: '' };
+        }
+        dev.passos_solucao[pi][key4] = val;
+      } else {
+        dev[key2] = val;
+      }
+
+    } else if (prefix === 'ai') {
+      // Ação imediata: ai__idx
+      if (!Array.isArray(APP.report.acoes_imediatas)) APP.report.acoes_imediatas = [];
+      APP.report.acoes_imediatas[+key1] = val;
+
+    } else if (prefix === 'ap') {
+      // Ação preventiva: ap__idx
+      if (!Array.isArray(APP.report.acoes_preventivas)) APP.report.acoes_preventivas = [];
+      APP.report.acoes_preventivas[+key1] = val;
+    }
+  } catch (e) {
+    console.warn('efSave: erro ao salvar campo', id, e);
+  }
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 12 — INTERAÇÃO DO RELATÓRIO
+// ─────────────────────────────────────────────
+
+function toggleFault(fi) {
+  const body = el(`fcb${fi}`);
+  const chev = el(`fch${fi}`);
+  if (!body) return;
+  body.classList.toggle('open');
+  if (chev) chev.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function addStep(devIdx, faultIdx) {
+  const dev = APP.report?.dispositivos?.[devIdx];
+  if (!dev) return;
+  if (!Array.isArray(dev.passos_solucao)) dev.passos_solucao = [];
+  dev.passos_solucao.push({ passo: dev.passos_solucao.length + 1, titulo: '', detalhe: '' });
+  buildReport(APP.report);
+  setTimeout(() => {
+    const body = el(`fcb${faultIdx}`);
+    if (body && !body.classList.contains('open')) body.classList.add('open');
+    const chev = el(`fch${faultIdx}`);
+    if (chev) chev.style.transform = 'rotate(180deg)';
+    scrollToSection('s3');
+  }, 60);
+}
+
+function addAcao(tipo) {
+  if (!APP.report) return;
+  if (tipo === 'i') {
+    if (!Array.isArray(APP.report.acoes_imediatas)) APP.report.acoes_imediatas = [];
+    APP.report.acoes_imediatas.push('');
+  } else {
+    if (!Array.isArray(APP.report.acoes_preventivas)) APP.report.acoes_preventivas = [];
+    APP.report.acoes_preventivas.push('');
+  }
+  buildReport(APP.report);
+  setTimeout(() => scrollToSection('s4'), 60);
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 13 — NAVEGAÇÃO DO RELATÓRIO (sidebar)
+// ─────────────────────────────────────────────
+
+function scrollToSection(sectionId) {
+  const target = el(sectionId);
+  const container = el('rel-main');
+  if (!target || !container) return;
+  const offset = target.offsetTop - 8;
+  container.scrollTo({ top: offset, behavior: 'smooth' });
+  highlightNav(sectionId);
+}
+
+// Alias curto usado no HTML inline
+function gSec(id) { scrollToSection(id); }
+
+function highlightNav(activeId) {
+  const map = { s0:'rn0', s1:'rn1', s2:'rn2', s3:'rn3', s4:'rn4', s5:'rn5' };
+  document.querySelectorAll('.rn').forEach(n => n.classList.remove('on'));
+  const target = map[activeId];
+  if (target) el(target)?.classList.add('on');
+}
+
+function watchSections() {
+  const container = el('rel-main');
+  if (!container) return;
+
+  // Remover listener anterior se existir
+  container.removeEventListener('scroll', container._navScroll);
+
+  container._navScroll = () => {
+    const OFFSET = 72;
+    const containerTop = container.getBoundingClientRect().top;
+    let active = 's0';
+    for (const id of ['s0','s1','s2','s3','s4','s5']) {
+      const section = el(id);
+      if (!section) continue;
+      if (section.getBoundingClientRect().top - containerTop <= OFFSET) active = id;
+    }
+    highlightNav(active);
+  };
+
+  container.addEventListener('scroll', container._navScroll, { passive: true });
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 14 — CONSTRUÇÃO DO RELATÓRIO HTML
+// ─────────────────────────────────────────────
+
+function buildReport(r) {
+  if (!r) return;
+  const ph   = el('rph');
+  const body = el('rbody');
+  if (!ph || !body) return;
+
+  ph.style.display   = 'none';
+  body.style.display = 'block';
+
+  const faults = (r.dispositivos || []).filter(d => d.status_ne107 !== 'G');
+  const ok     = (r.dispositivos || []).filter(d => d.status_ne107 === 'G');
+
+  body.innerHTML = [
+    _buildBanner(),
+    _buildSection0(r),
+    _buildSection1(r, faults, ok),
+    _buildSection2(r),
+    _buildSection3(r, faults),
+    _buildSection4(r),
+    _buildSection5(r),
+  ].join('');
+
+  // Atualizar estado do nav item 03 (só existe quando há falhas)
+  const rn3 = el('rn3');
+  if (rn3) {
+    rn3.style.opacity       = faults.length ? '1' : '0.4';
+    rn3.style.pointerEvents = faults.length ? 'auto' : 'none';
+  }
+
+  // Scroll para o topo e ativar watch
+  const container = el('rel-main');
+  if (container) container.scrollTop = 0;
+  setTimeout(watchSections, 200);
+}
+
+function _buildBanner() {
+  return `<div id="ebanner" class="np">
+    <div class="ehint"><span class="eamb">✎</span> Campos editáveis — toque para ajustar antes de exportar</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn bo bsm np" onclick="goTab('topo')">Topologia</button>
+      <button class="btn bo bsm np" onclick="exportWord()">Word</button>
+      <button class="btn bp bsm"    onclick="exportPDF()">PDF</button>
+      <button class="btn bo bsm np" onclick="shareWA()">WhatsApp</button>
+    </div>
+  </div>`;
+}
+
+function _buildSection0(r) {
+  return `<div id="s0" class="rb ranchor">
+    <div class="rcapa">
+      <div class="rstripe"></div>
+      <div class="rcbody">
+        <div class="rctag np">Relatório Técnico · PROFIBUS PA</div>
+        <div class="rctit">Diagnóstico de Rede PROFIBUS PA</div>
+        <div class="rcsub">Análise de Falhas · NE107 · Plano de Ação</div>
+        <div class="idgrid">
+          <div class="idrow"><span class="idlbl">Segmento</span>${ef('m__segmento', r.segmento, 'Nome do segmento')}</div>
+          <div class="idrow"><span class="idlbl">Data / Hora</span>${ef('m__datahora', `${r.data || ''} ${r.hora || ''}`.trim(), 'Data e hora')}</div>
+          <div class="idrow"><span class="idlbl">Empresa</span>${ef('m__empresa', r.empresa, 'Nome da empresa')}</div>
+          <div class="idrow"><span class="idlbl">Planta / Unidade</span>${ef('m__planta', r.planta, 'Planta ou unidade')}</div>
+          <div class="idrow"><span class="idlbl">Responsável</span>${ef('m__responsavel', r.responsavel, 'Nome e matrícula')}</div>
+          <div class="idrow"><span class="idlbl">Ordem de Serviço</span>${ef('m__os', r.os || APP.cfg.os || '', 'Número da OS')}</div>
+          <div class="idrow" style="grid-column:1/-1">
+            <span class="idlbl">Instrumentos de diagnóstico</span>
+            ${ef('m__ferramentas', r.ferramentas, 'Ex: VPW10, DM-AM-KIT')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _buildSection1(r, faults, ok) {
+  const m = r.metricas || {};
+  return `<div id="s1" class="rb ranchor">
+    <div class="rsh"><span class="rsnum">01</span><span class="rstit">Sumário Executivo</span></div>
+    <div class="rsb">
+      <div class="flbl">Situação geral do segmento</div>
+      ${ef('m__resumo_executivo', r.resumo_executivo, 'Estado geral, impacto operacional, urgência...', true)}
+      <div class="mrow">
+        <div class="met" style="border-color:var(--b1)">
+          <div class="mn" style="color:var(--txt)">${r.dispositivos.length}</div><div class="ml">Total</div>
+        </div>
+        <div class="met" style="border-color:var(--red)">
+          <div class="mn" style="color:var(--red)">${m.F || 0}</div><div class="ml">Falha (F)</div>
+        </div>
+        <div class="met" style="border-color:var(--amb)">
+          <div class="mn" style="color:var(--amb)">${m.S || 0}</div><div class="ml">Fora Spec (S)</div>
+        </div>
+        <div class="met" style="border-color:var(--pur)">
+          <div class="mn" style="color:var(--pur)">${m.M || 0}</div><div class="ml">Manut. (M)</div>
+        </div>
+        <div class="met" style="border-color:var(--grn)">
+          <div class="mn" style="color:var(--grn)">${ok.length}</div><div class="ml">Normal (G)</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _buildSection2(r) {
+  const rows = r.dispositivos.map((d, i) => `
+    <tr class="${d.status_ne107 !== 'G' ? 'trf' : ''}">
+      <td><span class="mpill">${esc(d.endereco)}</span></td>
+      <td>${ef(`d__${i}__tag`, d.tag, 'TAG')}</td>
+      <td>${ef(`d__${i}__tipo`, d.tipo, 'Tipo')}</td>
+      <td><span class="sev ${NE107.css[d.status_ne107] || 'sG'}">${esc(d.status_ne107)}</span></td>
+      <td><span class="msm">${esc(d.valor_pv) || '—'}</span></td>
+      <td><span class="msm">${esc(d.corrente_ma) || '—'}</span></td>
+    </tr>`).join('');
+
+  return `<div id="s2" class="rb ranchor">
+    <div class="rsh"><span class="rsnum">02</span><span class="rstit">Inventário do Segmento</span></div>
+    <div class="rsb">
+      <div class="tw">
+        <table class="rt">
+          <thead><tr><th>Addr</th><th>TAG</th><th>Tipo</th><th>NE107</th><th>PV / Status</th><th>I (mA)</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _buildSection3(r, faults) {
+  if (!faults.length) return '';
+
+  const cards = faults.map((d, fi) => {
+    const gi  = r.dispositivos.indexOf(d);
+    const col = NE107.color[d.status_ne107] || 'var(--amb)';
+    const css = NE107.css[d.status_ne107]   || 'sS';
+
+    // NE107 dropdown
+    const sevOptions = ['F','S','M','C','G'].map(v =>
+      `<option value="${v}"${d.status_ne107 === v ? ' selected' : ''}>${v} — ${NE107.label[v]}</option>`
+    ).join('');
+
+    // Campos opcionais de medição (só exibe se têm valor)
+    const signalFields = [
+      d.sinal_mv  ? `<div><div class="flbl">Nível sinal (mV)</div>${ef(`d__${gi}__sinal_mv`, d.sinal_mv, 'mV')}</div>` : '',
+      d.jitter_us ? `<div><div class="flbl">Jitter (µs)</div>${ef(`d__${gi}__jitter_us`, d.jitter_us, 'µs')}</div>` : '',
+    ].filter(Boolean).join('');
+
+    // Passos de solução
+    const steps = (d.passos_solucao || []).map((p, pi) => `
+      <div class="sstep">
+        <div class="snum" style="background:${col}22;border:1px solid ${col};color:${col}">${p.passo}</div>
+        <div class="sbody">
+          <div class="flbl" style="margin-bottom:2px">Ação ${p.passo}</div>
+          ${ef(`d__${gi}__ps__${pi}__titulo`, p.titulo, 'Título da ação')}
+          <div style="margin-top:4px">
+            ${ef(`d__${gi}__ps__${pi}__detalhe`, p.detalhe, 'Detalhe técnico completo...', true)}
+          </div>
+        </div>
+      </div>`).join('');
+
+    return `<div class="fc" style="border-left:3px solid ${col}">
+      <div class="fch" onclick="toggleFault(${fi})">
+        <span class="sev ${css}">${esc(d.status_ne107)}</span>
+        <span class="fapill">Addr ${esc(d.endereco)}</span>
+        <span class="ftxt">${esc(d.tag)}</span>
+        <span class="ftyp">${esc(d.tipo)}</span>
+        <svg id="fch${fi}" class="fchev" width="14" height="14" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          style="transition:transform .2s${fi === 0 ? ';transform:rotate(180deg)' : ''}">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+
+      <div class="fcb${fi === 0 ? ' open' : ''}" id="fcb${fi}">
+        <div class="fss">
+          <div class="fsst">3.${fi+1}.1 — Identificação e Medições</div>
+          <div class="fg2r">
+            <div>
+              <div class="flbl">Classificação NE107</div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:3px">
+                <span class="sev ${css}" style="font-size:9px">${esc(NE107.label[d.status_ne107] || d.status_ne107)}</span>
+                <select class="efsel np"
+                  onchange="efSave('d__${gi}__status_ne107',this.value);buildReport(APP.report)">
+                  ${sevOptions}
+                </select>
+              </div>
+            </div>
+            <div><div class="flbl">Fonte do diagnóstico</div>${ef(`d__${gi}__fonte_imagem`, d.fonte_imagem, 'VPW10, DM-AM-KIT...')}</div>
+            <div><div class="flbl">Valor / Status byte</div>${ef(`d__${gi}__valor_pv`, d.valor_pv, 'Ex: BAD / 0x10')}</div>
+            <div><div class="flbl">Corrente (mA)</div>${ef(`d__${gi}__corrente_ma`, d.corrente_ma, 'Ex: 12.5')}</div>
+            ${signalFields}
+          </div>
+        </div>
+
+        <div class="fss">
+          <div class="fsst">3.${fi+1}.2 — Descrição da Falha</div>
+          <div class="flbl">Falha identificada na análise das imagens</div>
+          ${ef(`d__${gi}__descricao_falha`, d.descricao_falha, 'Descreva a falha...', true)}
+        </div>
+
+        <div class="fss">
+          <div class="fsst">3.${fi+1}.3 — Caminho de Solução</div>
+          ${steps}
+          <button class="btnadd np" onclick="addStep(${gi},${fi})">+ Adicionar passo</button>
+        </div>
+
+        <div class="fss">
+          <div class="fsst">3.${fi+1}.4 — Observações do Técnico</div>
+          ${ef(`d__${gi}__obs`, d.obs, 'Condições de campo, contexto, materiais necessários...', true)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div id="s3" class="rb ranchor">
+    <div class="rsh">
+      <span class="rsnum">03</span>
+      <span class="rstit">Análise Detalhada de Falhas (${faults.length})</span>
+    </div>
+    <div class="rsb">${cards}</div>
+  </div>`;
+}
+
+function _buildSection4(r) {
+  const makeRow = (prefix, item, i, colorClass) => `
+    <div class="arow">
+      <div class="anum ${colorClass}">${i + 1}</div>
+      <div style="flex:1">${ef(`${prefix}__${i}`, item, 'Descreva a ação...', true)}</div>
+      <select class="efssm np" style="flex-shrink:0;margin-top:2px">
+        <option value="">Resp...</option>
+        <option>Instrumentação</option><option>Manutenção</option>
+        <option>Processo</option><option>Elétrica</option>
+      </select>
+    </div>`;
+
+  const imediatas   = (r.acoes_imediatas   || []).map((a, i) => makeRow('ai', a, i, 'ar')).join('');
+  const preventivas = (r.acoes_preventivas || []).map((a, i) => makeRow('ap', a, i, 'ap')).join('');
+
+  return `<div id="s4" class="rb ranchor">
+    <div class="rsh"><span class="rsnum">04</span><span class="rstit">Plano de Ação</span></div>
+    <div class="rsb">
+      <div class="flbl" style="margin-bottom:7px">
+        <span style="color:var(--red)">●</span> Ações imediatas — executar em até 24h
+      </div>
+      ${imediatas}
+      <button class="btnadd np" onclick="addAcao('i')" style="margin-bottom:16px">+ Ação imediata</button>
+
+      <div class="flbl" style="margin-bottom:7px;margin-top:12px">
+        <span style="color:var(--pur)">●</span> Ações preventivas — próxima parada programada
+      </div>
+      ${preventivas}
+      <button class="btnadd np" onclick="addAcao('p')">+ Ação preventiva</button>
+    </div>
+  </div>`;
+}
+
+function _buildSection5(r) {
+  const footer = APP.cfg.foot
+    ? `<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:10px;
+         padding-top:8px;border-top:1px solid var(--b0)">${esc(APP.cfg.foot)}</div>`
+    : '';
+
+  return `<div id="s5" class="rb ranchor">
+    <div class="rsh"><span class="rsnum">05</span><span class="rstit">Conclusão Técnica e Assinaturas</span></div>
+    <div class="rsb">
+      <div class="flbl">Avaliação geral e recomendações finais</div>
+      ${ef('m__conclusao_geral', r.conclusao_geral, 'Avaliação técnica, estado do segmento, recomendações...', true)}
+      ${footer}
+      <div class="asg">
+        <div class="asb">
+          <div class="aslbl">Elaborado por</div>
+          ${ef('m__elab', r.responsavel || APP.cfg.resp || '', 'Nome e matrícula')}
+          <div class="asline"></div><div class="assub">Assinatura / Data</div>
+        </div>
+        <div class="asb">
+          <div class="aslbl">Revisado por</div>
+          ${ef('m__rev', '', 'Nome e matrícula')}
+          <div class="asline"></div><div class="assub">Assinatura / Data</div>
+        </div>
+        <div class="asb">
+          <div class="aslbl">Aprovado por</div>
+          ${ef('m__apr', '', 'Nome e cargo')}
+          <div class="asline"></div><div class="assub">Assinatura / Data</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 15 — TOPOLOGIA SVG
+// ─────────────────────────────────────────────
+
+function buildTopo(r) {
+  const devs = r?.dispositivos || [];
+  if (!devs.length) return;
+
+  const COLOR = { F:'#ff4545', S:'#f5a623', M:'#9b8afb', C:'#ff9900', G:'#29e07f' };
+  const TRUNK_Y = 150, COUPLER_X = 65, END_X = 780;
+  const spacing = Math.min(130, (END_X - 140) / Math.max(devs.length, 1));
+
+  let paths = '';
+
+  // Trunk line
+  paths += `<line x1="${COUPLER_X+32}" y1="${TRUNK_Y}" x2="${END_X}" y2="${TRUNK_Y}"
+    stroke="#3b9eff" stroke-width="2.5" opacity=".3"/>`;
+
+  // Terminador final
+  paths += `<rect x="${END_X-3}" y="${TRUNK_Y-13}" width="6" height="26"
+    rx="2" fill="#3b9eff" opacity=".5"/>`;
+
+  // Coupler
+  paths += `
+    <rect x="${COUPLER_X-32}" y="${TRUNK_Y-28}" width="64" height="56" rx="7"
+      fill="#152234" stroke="#3b9eff" stroke-width="1.5"/>
+    <text x="${COUPLER_X}" y="${TRUNK_Y-8}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="9" fill="#3b9eff">COUPLER</text>
+    <text x="${COUPLER_X}" y="${TRUNK_Y+7}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="8" fill="#6b93b8">DP/PA</text>
+    <text x="${COUPLER_X}" y="${TRUNK_Y+20}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="7" fill="#2f4b66">${esc(r.segmento || 'SEG')}</text>`;
+
+  devs.forEach((d, i) => {
+    const x    = 140 + i * spacing;
+    const top  = i % 2 === 0;
+    const dY   = top ? TRUNK_Y - 90 : TRUNK_Y + 90;
+    const col  = COLOR[d.status_ne107] || '#29e07f';
+    const bad  = d.status_ne107 !== 'G';
+    const dash = bad ? '4,3' : '0';
+
+    paths += `<line x1="${x}" y1="${TRUNK_Y}" x2="${x}" y2="${dY}"
+      stroke="${col}" stroke-width="1.5" opacity=".55" stroke-dasharray="${dash}"/>`;
+    paths += `<rect x="${x-33}" y="${dY+(top?-28:0)}" width="66" height="48" rx="6"
+      fill="#152234" stroke="${col}" stroke-width="${bad ? 2 : 1}"/>`;
+    paths += `<text x="${x}" y="${dY+(top?-9:21)}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="8" fill="${col}" font-weight="bold">${esc(d.tag)}</text>`;
+    paths += `<text x="${x}" y="${dY+(top?5:34)}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="7" fill="#6b93b8">A:${esc(d.endereco)}</text>`;
+
+    if (bad) {
+      paths += `<circle cx="${x+27}" cy="${dY+(top?-28:0)}" r="8" fill="${col}"/>`;
+      paths += `<text x="${x+27}" y="${dY+(top?-25:3)}" text-anchor="middle"
+        font-family="IBM Plex Mono" font-size="7" fill="#08101a" font-weight="bold">${esc(d.status_ne107)}</text>`;
+    }
+  });
+
+  const viewW = Math.max(800, 150 + devs.length * spacing + 80);
+  const svg = el('tsvg');
+  if (svg) {
+    svg.setAttribute('viewBox', `0 0 ${viewW} 300`);
+    svg.innerHTML = paths;
+  }
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 16 — HISTÓRICO (localStorage)
+// ─────────────────────────────────────────────
+
+function saveToHist(report) {
+  const hist = lsGet('pa_hist', []);
+  hist.unshift({
+    id: Date.now(),
+    segmento: report.segmento,
+    data: report.data,
+    hora: report.hora,
+    metricas: report.metricas,
+    report,
+  });
+  // Manter apenas os 20 mais recentes
+  lsSet('pa_hist', hist.slice(0, 20));
+}
+
+function renderHist() {
+  const hist = lsGet('pa_hist', []);
+  const listEl = el('hist-list');
+  if (!listEl) return;
+
+  if (!hist.length) {
+    listEl.innerHTML = '<div class="ph" style="height:auto;padding:20px 0">Nenhum relatório salvo ainda.</div>';
+    return;
+  }
+
+  listEl.innerHTML = hist.map((item, i) => {
+    const mF = item.metricas?.F || 0;
+    const mS = item.metricas?.S || 0;
+    return `<div class="hcard" onclick="loadHist(${i})">
+      <div class="hcard-top">
+        <span class="hcard-seg">${esc(item.segmento || 'Sem nome')}</span>
+        <span class="hcard-dt">${esc(item.data || '')} ${esc(item.hora || '')}</span>
+      </div>
+      <div class="hcard-metrics">
+        ${mF > 0 ? `<span class="hm hm-f">F: ${mF}</span>` : ''}
+        ${mS > 0 ? `<span class="hm hm-s">S: ${mS}</span>` : ''}
+        <span class="hm hm-g">Total: ${item.metricas?.total || 0}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadHist(i) {
+  const hist = lsGet('pa_hist', []);
+  const item = hist[i];
+  if (!item?.report) return;
+  APP.report = item.report;
+  buildReport(APP.report);
+  buildTopo(APP.report);
+  _updateFaultBadge(APP.report);
+  goTab('rel');
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 17 — EXPORTAÇÕES
+// ─────────────────────────────────────────────
+
+function exportPDF() {
+  if (!APP.report) { alert('Gere um relatório primeiro.'); return; }
+
+  // Expandir textareas para impressão completa
+  document.querySelectorAll('.efa').forEach(ta => {
+    ta.dataset.h = ta.style.height || '';
+    ta.style.height = 'auto';
+    ta.style.overflow = 'visible';
+  });
+
+  document.querySelectorAll('.np').forEach(e => e.style.setProperty('display', 'none', 'important'));
+  document.querySelectorAll('.efi').forEach(e => e.style.display = 'none');
+
+  window.print();
+
+  // Restaurar após impressão
+  setTimeout(() => {
+    document.querySelectorAll('.efa').forEach(ta => {
+      ta.style.height = ta.dataset.h || 'auto';
+      ta.style.overflow = '';
+    });
+    document.querySelectorAll('.np').forEach(e => e.style.removeProperty('display'));
+    document.querySelectorAll('.efi').forEach(e => e.style.display = '');
+  }, 1500);
+}
+
+function exportWord() {
+  if (!APP.report) { alert('Gere um relatório primeiro.'); return; }
+  const r = APP.report;
+  const faults = r.dispositivos.filter(d => d.status_ne107 !== 'G');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{font-family:Arial,sans-serif;font-size:11pt;color:#111;max-width:800px;margin:0 auto;padding:20px}
+  h1{font-size:18pt;color:#185FA5;border-bottom:2px solid #185FA5;padding-bottom:6px}
+  h2{font-size:13pt;color:#185FA5;margin-top:20px;border-left:4px solid #185FA5;padding-left:8px}
+  h3{font-size:11pt;color:#333;margin-top:14px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt}
+  th{background:#d0e4f5;padding:7px 10px;border:1px solid #aac;text-align:left;font-weight:bold}
+  td{padding:6px 9px;border:1px solid #ccc}
+  .sF{background:#ffe0e0;color:#c00;padding:2px 7px;border-radius:10px;font-weight:bold}
+  .sS{background:#fff3d0;color:#7a5000;padding:2px 7px;border-radius:10px;font-weight:bold}
+  .sM{background:#f0eeff;color:#5b3fac;padding:2px 7px;border-radius:10px;font-weight:bold}
+  .sG{background:#e0f5ea;color:#1a7a40;padding:2px 7px;border-radius:10px;font-weight:bold}
+  .step{display:flex;gap:10px;margin:8px 0;padding:8px;background:#f8fafc;border-radius:6px;border:1px solid #ddd}
+  .stepnum{width:22px;height:22px;border-radius:50%;background:#185FA5;color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:10pt;flex-shrink:0}
+  .meta{background:#f0f4f8;padding:12px;border-radius:6px;margin-bottom:16px}
+  .mr{display:flex;gap:16px;margin-bottom:4px}
+  .ml{font-size:9pt;color:#666;min-width:130px;font-weight:bold}
+  .sig-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:20px}
+  .sig-box{border:1px solid #ccc;padding:12px;border-radius:6px}
+  .sig-line{border-bottom:1px solid #ccc;margin:30px 0 6px}
+  .sig-sub{font-size:9pt;color:#888}
+  .footer{margin-top:30px;padding-top:10px;border-top:1px solid #ccc;font-size:9pt;color:#888;text-align:center}
+</style>
+</head><body>
+<h1>Relatório Técnico PROFIBUS PA<br>
+  <span style="font-size:12pt;color:#555">Diagnóstico de Rede · Análise de Falhas · Plano de Ação</span>
+</h1>
+<div class="meta">
+  <div class="mr"><span class="ml">Segmento:</span><span>${esc(r.segmento)}</span></div>
+  <div class="mr"><span class="ml">Data / Hora:</span><span>${esc(r.data)} ${esc(r.hora)}</span></div>
+  <div class="mr"><span class="ml">Responsável:</span><span>${esc(r.responsavel)}</span></div>
+  <div class="mr"><span class="ml">Empresa:</span><span>${esc(r.empresa)}</span></div>
+  <div class="mr"><span class="ml">Planta:</span><span>${esc(r.planta)}</span></div>
+  <div class="mr"><span class="ml">Instrumentos:</span><span>${esc(r.ferramentas)}</span></div>
+</div>
+
+<h2>01 — Sumário Executivo</h2>
+<p>${esc(r.resumo_executivo)}</p>
+<table>
+  <tr><th>Total</th><th>Falha (F)</th><th>Fora Spec (S)</th><th>Manutenção (M)</th><th>Normal (G)</th></tr>
+  <tr>
+    <td>${r.dispositivos.length}</td>
+    <td>${r.metricas?.F||0}</td><td>${r.metricas?.S||0}</td>
+    <td>${r.metricas?.M||0}</td><td>${r.dispositivos.filter(d=>d.status_ne107==='G').length}</td>
+  </tr>
+</table>
+
+<h2>02 — Inventário do Segmento</h2>
+<table>
+  <tr><th>Endereço</th><th>TAG</th><th>Tipo</th><th>NE107</th><th>PV / Status</th><th>I (mA)</th></tr>
+  ${r.dispositivos.map(d => `
+    <tr>
+      <td>${esc(d.endereco)}</td><td><b>${esc(d.tag)}</b></td><td>${esc(d.tipo)}</td>
+      <td><span class="s${esc(d.status_ne107)}">${esc(d.status_ne107)}</span></td>
+      <td>${esc(d.valor_pv)||'—'}</td><td>${esc(d.corrente_ma)||'—'}</td>
+    </tr>`).join('')}
+</table>
+
+<h2>03 — Análise Detalhada de Falhas (${faults.length})</h2>
+${faults.map((d, fi) => `
+  <h3>3.${fi+1} — ${esc(d.tag)} | Addr ${esc(d.endereco)} |
+    <span class="s${esc(d.status_ne107)}">${esc(d.status_ne107)} — ${esc(NE107.label[d.status_ne107]||'')}</span>
+  </h3>
+  <table>
+    <tr><th>Tipo</th><th>Fonte</th><th>Valor/Status</th><th>Corrente</th></tr>
+    <tr><td>${esc(d.tipo)}</td><td>${esc(d.fonte_imagem)||'—'}</td>
+        <td>${esc(d.valor_pv)||'—'}</td><td>${esc(d.corrente_ma)||'—'} mA</td></tr>
+  </table>
+  <p><b>Falha identificada:</b> ${esc(d.descricao_falha)}</p>
+  <p><b>Caminho de solução:</b></p>
+  ${(d.passos_solucao||[]).map(p => `
+    <div class="step">
+      <div class="stepnum">${p.passo}</div>
+      <div><b>${esc(p.titulo)}</b><br>${esc(p.detalhe)}</div>
+    </div>`).join('')}
+  ${d.obs ? `<p><b>Observações:</b> ${esc(d.obs)}</p>` : ''}`).join('')}
+
+<h2>04 — Plano de Ação</h2>
+<p><b style="color:#c00">Ações Imediatas (até 24h):</b></p>
+${(r.acoes_imediatas||[]).map((a,i) => `
+  <div class="step">
+    <div class="stepnum" style="background:#c00">${i+1}</div>
+    <div>${esc(a)}</div>
+  </div>`).join('')}
+<p style="margin-top:14px"><b style="color:#5b3fac">Ações Preventivas (próxima parada):</b></p>
+${(r.acoes_preventivas||[]).map((a,i) => `
+  <div class="step">
+    <div class="stepnum" style="background:#5b3fac">${i+1}</div>
+    <div>${esc(a)}</div>
+  </div>`).join('')}
+
+<h2>05 — Conclusão Técnica</h2>
+<p>${esc(r.conclusao_geral)}</p>
+<div class="sig-grid">
+  <div class="sig-box"><b>Elaborado por</b><br>${esc(r.responsavel||'')}
+    <div class="sig-line"></div><div class="sig-sub">Assinatura / Data</div></div>
+  <div class="sig-box"><b>Revisado por</b>
+    <div class="sig-line"></div><div class="sig-sub">Assinatura / Data</div></div>
+  <div class="sig-box"><b>Aprovado por</b>
+    <div class="sig-line"></div><div class="sig-sub">Assinatura / Data</div></div>
+</div>
+${APP.cfg.foot ? `<div class="footer">${esc(APP.cfg.foot)}</div>` : ''}
+</body></html>`;
+
+  const filename = `Relatorio_PA_${(r.segmento||'SEG').replace(/\s+/g,'_')}_${(r.data||'').replace(/\//g,'-')}.doc`;
+  const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: filename,
+  });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function shareWA() {
+  if (!APP.report) { alert('Gere um relatório primeiro.'); return; }
+  const r = APP.report;
+  const faults = r.dispositivos.filter(d => d.status_ne107 !== 'G');
+
+  const lines = [
+    '*RELATÓRIO TÉCNICO — PROFIBUS PA*',
+    `Segmento: ${r.segmento || ''}`,
+    `Data: ${r.data || ''} ${r.hora || ''}`,
+    `Responsável: ${r.responsavel || ''}`,
+    '',
+    '*SUMÁRIO*',
+    r.resumo_executivo || '',
+    '',
+    `📊 Total: ${r.dispositivos.length} | ❌ F: ${r.metricas?.F||0} | ⚠️ S: ${r.metricas?.S||0} | 🔧 M: ${r.metricas?.M||0}`,
+    '',
+    ...(faults.length ? [
+      '*FALHAS IDENTIFICADAS*',
+      ...faults.map(d => `• Addr ${d.endereco} — ${d.tag} (${d.status_ne107}): ${(d.descricao_falha||'').substring(0,80)}...`),
+      '',
+    ] : []),
+    '*AÇÕES IMEDIATAS*',
+    ...(r.acoes_imediatas||[]).map((a,i) => `${i+1}. ${a}`),
+    '',
+    '*CONCLUSÃO*',
+    r.conclusao_geral || '',
+  ];
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 18 — LIMPAR / RESET
+// ─────────────────────────────────────────────
+
+function limpar() {
+  APP.imgs   = [];
+  APP.tags   = [];
+  APP.report = null;
+
+  renderPreviews();
+  renderTags();
+
+  // Reset input file
+  const fileInput = document.querySelector('#drop input[type=file]');
+  if (fileInput) fileInput.value = '';
+
+  // Reset UI
+  const ids = ['logbox', 'prog'];
+  ids.forEach(id => { const e = el(id); if (e) e.style.display = 'none'; });
+
+  const badge = el('tbadge');
+  if (badge) badge.style.display = 'none';
+
+  const body = el('rbody');
+  if (body) { body.innerHTML = ''; body.style.display = 'none'; }
+
+  const ph = el('rph');
+  if (ph) ph.style.display = 'flex';
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 19 — AGENTE ESPECIALISTA (CHAT)
+// ─────────────────────────────────────────────
+
+const AGENT_SYSTEM = `Você é um agente especialista sênior em PROFIBUS PA com mais de 20 anos de experiência em automação de processos industriais. Responda SEMPRE em português brasileiro, de forma técnica, precisa e prática.
+
+BASE TÉCNICA:
+FÍSICA: IEC 61158-2 MBP 31,25kbit/s fixo; tensão 9–32 VDC no dispositivo; modulação Manchester ±9mA; cabo Tipo A (100Ω±20%, ≥0,8mm², blindagem≥90%); terminação obrigatória nas 2 extremidades: 2×220Ω//=110Ω; trunk: 1900m (normal), 1000m (FISCO), 1900m (High-Power Trunk); spurs: 1–12disp=120m, 13–14=90m, 15–18=60m, 19–24=30m, 25–32=1m; máx 32 disp/segmento.
+
+CORRENTE: I_total=ΣI_disp+10%margem; V_min=V_coupler−(I×44Ω/km×km)≥9V; consumo típico: pressão 10–13mA, nível 11–16mA, Coriolis 15–20mA, temperatura 10–12mA, posicionador 13–20mA.
+
+FISCO (IEC 60079-27): V_oc≤17,5V, I_sc≤250mA, P≤1,9W; disp: C_i≤5µF, L_i≤10mH; validação por BoM.
+
+PA PROFILE 3.02: PB (DEVICE_ID, TAG), TB (calibração), FB: AI (PV_SCALE, L_TYPE, MODE_BLK, CHANNEL), AO, DI, DO, PID, TOT. MODE_BLK: AUTO/MAN/OOS.
+
+STATUS BYTE: 0x80=GOOD, 0x40=UNCERTAIN, 0x00=BAD, 0x08=DeviceFail, 0x10=SensorFail, 0x18=NoComm.
+
+NE107: F=Falha Crítica, S=Fora de Spec, M=Manutenção Requerida, C=Em Verificação, G=Normal.
+
+TROUBLESHOOTING 5 CAMADAS (>80% falhas na camada 1):
+1-FÍSICA: 110Ω (desligado), V≥9V no mais distante, terminação, polaridade, blindagem, cabo Tipo A
+2-ENDEREÇAMENTO: 1–125 válidos, sem duplicados
+3-CONFIGURAÇÃO: GSD correto, módulos I/O compatíveis
+4-PARAMETRIZAÇÃO: MODE_BLK=AUTO, PV_SCALE correto, L_TYPE correto
+5-APLICAÇÃO: escalonamento, unidade, calibração, simulação ativa
+
+FERRAMENTAS: VPW10 (Spider 6-eixos, correntes spur/trunk, live list, osciloscópio); DM-AM-KIT (jitter µs/nó, ruído mV, sinal mV, expert system, Commissioning Wizard); FDH-1 (Quick Check, Failure Margin%, Short-Circuit Test); ProfiTrace/ComBricks (SQI, retries, waveform, 24/7).
+
+DCS: PCS7/TIA (IM153-2, PDM, Y-Link); DeltaV (AMS, EDD); ABB 800xA (CI854); Yokogawa CENTUM (ALF111); Rockwell (Anybus X-Gateway).
+
+Use no máximo 400 palavras. Cite valores numéricos, fórmulas e normas. Para diagnóstico, use sempre as 5 camadas.`;
+
+function buildChatContext() {
+  if (!APP.report) return '';
+  const r = APP.report;
+  const faults = r.dispositivos.filter(d => d.status_ne107 !== 'G');
+  return `\n\n[RELATÓRIO ATIVO: Segmento=${r.segmento||'—'}, ` +
+    `${r.dispositivos.length} disp., ` +
+    `F=${r.metricas?.F||0} S=${r.metricas?.S||0} M=${r.metricas?.M||0}. ` +
+    `Falhas: ${faults.map(d=>`${d.tag}(A${d.endereco},${d.status_ne107})`).join(', ')||'nenhuma'}. ` +
+    `Sumário: ${(r.resumo_executivo||'').substring(0,120)}]`;
+}
+
+async function cSend() {
+  const input = el('cinp');
+  const txt   = input?.value.trim();
+  if (!txt) return;
+
+  input.value = '';
+  addChatMsg(txt, true);
+
+  // Incluir contexto do relatório em todas as mensagens
+  const content = txt + buildChatContext();
+  APP.chat.push({ role: 'user', content });
+
+  // Typing indicator
+  const typId = `typ-${Date.now()}`;
+  const typEl = Object.assign(document.createElement('div'), {
+    className: 'cmsg',
+    id: typId,
+    innerHTML: `<div class="cav a">PA</div>
+      <div class="cbbl a"><span class="dots"><span></span><span></span><span></span></span></div>`,
+  });
+  const chatLog = el('chat-log');
+  chatLog.appendChild(typEl);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: API_HEADERS,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: AGENT_SYSTEM,
+        messages: APP.chat,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`API ${res.status}: ${err?.error?.message || res.statusText}`);
+    }
+
+    const data  = await res.json();
+    const reply = (data.content || []).map(b => b.text || '').join('') || 'Sem resposta.';
+
+    APP.chat.push({ role: 'assistant', content: reply });
+    el(typId)?.remove();
+    addChatMsg(reply, false);
+
+  } catch (e) {
+    el(typId)?.remove();
+    addChatMsg(`Erro de conexão: ${e.message}`, false);
+  }
+}
+
+function addChatMsg(text, isUser) {
+  const log = el('chat-log');
+  if (!log) return;
+  const div = document.createElement('div');
+  div.className = `cmsg${isUser ? ' u' : ''}`;
+  div.innerHTML = `
+    <div class="cav ${isUser ? 'u' : 'a'}">${isUser ? 'EU' : 'PA'}</div>
+    <div class="cbbl ${isUser ? 'u' : 'a'}">${mdToHtml(text)}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function cKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); cSend(); }
+}
+
+// ─────────────────────────────────────────────
+// MÓDULO 20 — EVENTOS GLOBAIS
+// ─────────────────────────────────────────────
+
+/** Auto-resize de textareas ao digitar */
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('efa')) {
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 220) + 'px';
+  }
+});
+
+// ─────────────────────────────────────────────
+// MÓDULO 21 — SERVICE WORKER (modo offline)
+// ─────────────────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'pa-v2';
+const ASSETS = [
+  '${location.href}',
+  'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap'
+];
+self.addEventListener('install', e => e.waitUntil(
+  caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {}))
+));
+self.addEventListener('activate', e => e.waitUntil(
+  caches.keys().then(keys => Promise.all(
+    keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+  ))
+));
+self.addEventListener('fetch', e => {
+  // Nunca cachear chamadas à API
+  if (e.request.url.includes('api.anthropic.com')) return;
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() =>
+      new Response('Offline — verifique sua conexão.', { status: 503 })
+    ))
+  );
+});`;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {
+    // Service worker não suportado neste contexto — silencioso
+  });
+}
+</script>
+</body>
+</html>
